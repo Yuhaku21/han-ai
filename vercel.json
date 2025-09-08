@@ -1,8 +1,13 @@
 {
   "version": 2,
   "functions": {
-    "api/hf.js": {
+    "api/**/*.js": {
       "runtime": "nodejs18.x"
     }
-  }
+  },
+  "builds": [{ "src": "public/index.html", "use": "@vercel/static" }],
+  "routes": [
+    { "src": "/", "dest": "public/index.html" },
+    { "src": "/api/(.*)", "dest": "/api/$1" }
+  ]
 }
