@@ -1,37 +1,71 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Daguku AI Chat</title>
+    <style>
+      body { background:#0f1724; color:#e6eef8; font-family:sans-serif; }
+      .chat { max-width:600px; margin:50px auto; background:#111a2f; padding:20px; border-radius:10px; }
+      .messages { height:400px; overflow-y:auto; margin-bottom:10px; }
+      .msg { margin:5px 0; padding:8px 12px; border-radius:8px; }
+      .msg.user { background:#7c3aed; color:white; text-align:right; }
+      .msg.bot { background:#1e293b; color:#cbd5e1; text-align:left; }
+      textarea { width:80%; height:40px; border-radius:6px; }
+      button { padding:10px; border:none; border-radius:6px; background:#7c3aed; color:white; cursor:pointer; }
+    </style>
   </head>
   <body>
-    <h1>Daguku AI Chat</h1>
-    <form id="chat-form">
-      <input type="text" id="prompt" placeholder="Tanya sesuatu..." required />
-      <button type="submit">Kirim</button>
-    </form>
-    <pre id="result"></pre>
-
+    <div class="chat">
+      <h2>Daguku AI Chat</h2>
+      <div class="messages" id="messages"></div>
+      <div>
+        <textarea id="prompt" placeholder="Tulis pesan..."></textarea>
+        <button id="sendBtn">Kirim</button>
+      </div>
+    </div>
     <script>
-      document.getElementById("chat-form").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const prompt = document.getElementById("prompt").value;
-        const resultEl = document.getElementById("result");
-        resultEl.textContent = "Loading...";
+      const HF_API_PROXY = "/api/hf";
+      const HF_MODEL = "gpt2";
+      const messagesEl = document.getElementById("messages");
+      const promptEl = document.getElementById("prompt");
+      const sendBtn = document.getElementById("sendBtn");
 
+      function addMessage(text, who = "bot") {
+        const div = document.createElement("div");
+        div.className = "msg " + (who === "user" ? "user" : "bot");
+        div.textContent = text;
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      async function callModel(prompt) {
+        const res = await fetch(HF_API_PROXY, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model: HF_MODEL, prompt }),
+        });
+        const data = await res.json();
+        return data.text;
+      }
+
+      sendBtn.addEventListener("click", async () => {
+        const text = promptEl.value.trim();
+        if (!text) return;
+        addMessage(text, "user");
+        promptEl.value = "";
+        addMessage("Sedang mengetik...", "bot");
+        const placeholder = messagesEl.querySelectorAll(".msg.bot");
+        const target = placeholder[placeholder.length - 1];
         try {
-          const res = await fetch("/api/hf", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ model: "gpt2", prompt }),
-          });
-          const data = await res.json();
-          resultEl.textContent = JSON.stringify(data, null, 2);
+          const reply = await callModel(text);
+          target.textContent = reply;
         } catch (err) {
-          resultEl.textContent = "Error: " + err.message;
+          target.textContent = "Error: " + err.message;
         }
       });
+
+      addMessage("Halo 👋 saya Daguku AI, coba tanya apa saja!");
     </script>
   </body>
 </html>
