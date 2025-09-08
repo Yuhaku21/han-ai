@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>AI Chat — Prototype</title>
+    <!-- Import font Poppins -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #0f1724;
+        --accent: #7c3aed;
+        --muted: #94a3b8;
+        --glass: rgba(255, 255, 255, 0.03);
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        font-family: "Poppins", sans-serif;
+      }
+      body {
+        background: linear-gradient(180deg, #071028 0%, #081426 60%);
+        color: #e6eef8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 28px;
+      }
+      .container {
+        width: 100%;
+        max-width: 960px;
+        height: 80vh;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(2, 6, 23, 0.7);
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .sidebar {
+        padding: 18px;
+        background: rgba(124, 58, 237, 0.06);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .logo .dot {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--accent), #4f46e5);
+      }
+      .logo h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .conv {
+        padding: 10px;
+        border-radius: 10px;
+        background: var(--glass);
+        cursor: pointer;
+        font-size: 14px;
+      }
+      .chat {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        padding: 22px;
+        gap: 12px;
+        justify-content: space-between; /* ini penting */
+      }
+      .chat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .title {
+        font-weight: 600;
+      }
+      .messages {
+        flex: 1;
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 12px;
+        margin-bottom: 20px; /* tambah jarak sebelum input */
+      }
+      .msg {
+        max-width: 75%;
+        padding: 12px;
+        border-radius: 12px;
+        font-size: 14px;
+      }
+      .msg.user {
+        align-self: flex-end;
+        background: rgba(124, 58, 237, 0.15);
+        color: #fff;
+      }
+      .msg.bot {
+        align-self: flex-start;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--muted);
+      }
+
+      /* Input area baru */
+      .input-area {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #fff;
+        border-radius: 999px;
+        padding: 6px 14px;
+        margin-bottom: 50px; /* biar tidak terlalu nempel */
+      }
+      .input-area textarea {
+        flex: 1;
+        border: none;
+        outline: none;
+        resize: none;
+        background: transparent;
+        font-family: "Poppins", sans-serif;
+        font-size: 15px;
+        color: #000;
+        padding: 10px 6px;
+        max-height: 20px;
+      }
+      .input-area textarea::placeholder {
+        color: #888;
+      }
+      .send-btn {
+        background: var(--accent);
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+      .send-btn svg {
+        width: 20px;
+        height: 20px;
+        stroke: #fff;
+      }
+
+      @media (max-width: 880px) {
+        .container {
+          grid-template-columns: 1fr;
+        }
+        .sidebar {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <aside class="sidebar">
+        <div class="logo">
+          <div class="dot"></div>
+          <h2>Daguku AI</h2>
+        </div>
+        <div class="conv active">Percakapan Baru</div>
+      </aside>
+      <main class="chat">
+        <div class="chat-header">
+          <div class="title">Daguku AI Chat</div>
+          <small id="modelName">Model: gpt2</small>
+        </div>
+        <div class="messages" id="messages"></div>
+        <form class="input-area" onsubmit="return false;">
+          <textarea id="prompt" placeholder="Ask anything"></textarea>
+          <button id="sendBtn" class="send-btn">
+            <!-- Ikon kirim (paper plane) -->
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3 21l9-3 9 3-3-9 3-9-9 3-9-3 3 9z" />
+            </svg>
+          </button>
+        </form>
+      </main>
+    </div>
+
+    <script>
+      const HF_API_PROXY = "/api/hf";
+      const HF_MODEL = "gpt2";
+      const messagesEl = document.getElementById("messages");
+      const promptEl = document.getElementById("prompt");
+      const sendBtn = document.getElementById("sendBtn");
+
+      function addMessage(text, who = "bot") {
+        const div = document.createElement("div");
+        div.className = "msg " + (who === "user" ? "user" : "bot");
+        div.textContent = text;
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      async function callModel(prompt) {
+        const res = await fetch(HF_API_PROXY, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model: HF_MODEL, prompt }),
+        });
+        const data = await res.json();
+        return data.text;
+      }
+
+      sendBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        const text = promptEl.value.trim();
+        if (!text) return;
+        addMessage(text, "user");
+        promptEl.value = "";
+        addMessage("Sedang mengetik...", "bot");
+        const placeholder = messagesEl.querySelectorAll(".msg.bot");
+        const target = placeholder[placeholder.length - 1];
+        try {
+          const reply = await callModel(text);
+          target.textContent = reply;
+        } catch (err) {
+          target.textContent = "Error: " + err.message;
+        }
+      });
+
+      promptEl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendBtn.click();
+        }
+      });
+
+      addMessage("Halo 👋 saya Daguku AI, coba tanya apa saja!");
+    </script>
+  </body>
+</html>
